@@ -1,0 +1,222 @@
+
+float4x4 WvpXf     : WORLDVIEWPROJECTION <string UIWidget="None";>;
+float4x4 WorldITXf : WorldInverseTranspose < string UIWidget="None"; >;
+float4x4 ViewIXf   : ViewInverse < string UIWidget="None"; >;
+float4x4 WorldXf   : World < string UIWidget="None"; >;   
+
+// TODO: Turn this into a structure and have lots of point lights?
+// Key Point Light ----------------------------------
+float3 KeyPointLightPos : Position <
+    string Object = "PointLight0";
+    string UIName =  "Key Light Position";
+    string Space = "World";
+> = {0,0,0};
+
+float3 KeyPointLightColour : Specular <
+    string UIName =  "Key Light Colour";
+    string Object = "Pointlight0";
+    string UIWidget = "Color";
+> = {1.0f,1.0f,1.0f};
+
+float3 KeyPointLightAtten <
+    string UIName =  "Key Light Attenuation (const, linear, quadratic)";
+    float UIMin = 0.0;
+    float UIMax = 1.0;
+    float UIStep = 0.001;
+    string UIWidget = "Slider";
+> = {0.0f, 0.0f, 0.0f};
+// --------------------------------------------------
+
+// Specular exponent for the material
+float Shininess <
+    string UIWidget = "slider";
+    float UIMin = 1.0;
+    float UIMax = 128.0;
+    float UIStep = 1.0;
+    string UIName =  "Shininess";
+> = 10.0;
+
+float3 SpecularColour <
+    string UIName =  "Specular Material Colour";
+    string UIWidget = "Color";
+> = {1.0f,1.0f,1.0f};
+
+float VertexDistance = 3.0f;
+float NearDistanceInCm;	 // Nearest possible depth in the DepthSampler, in cm
+float DistanceDiffInCm;  // Difference between the furthest and nearest depth, in cm
+
+texture DepthTexture  <
+    string UIName =  "Depth Texture";
+    string ResourceType = "2D";
+>;
+
+sampler2D DepthSampler = sampler_state {
+    Texture = <DepthTexture>;
+};
+
+texture ColourTexture  <
+    string UIName =  "Colour Texture";
+    string ResourceType = "2D";
+>;
+
+sampler2D ColourSampler = sampler_state {
+    Texture = <ColourTexture>;
+};
+
+
+struct AppData {
+    float3 Position     : POSITION;
+    float3 Normal       : NORMAL;
+	float2 UV           : TEXCOORD0;
+};
+
+struct VertexDataPosition {
+    float4 HPosition    : POSITION;
+};
+
+// define outputs from vertex shader
+struct VertexDataShading {
+    float4 HPosition    : POSITION;
+	float2 UV           : TEXCOORD0;
+    float3 WorldView    : TEXCOORD1;
+    float3 WorldNormal  : TEXCOORD2;
+    float3 WorldPos     : TEXCOORD3;
+	
+	//float3 DisplacedPos    : TEXCOORD4;
+	//float3 NonDisplacedPos : TEXCOORD5;
+};
+
+VertexDataPosition RenderDepthGeometryOnlyVS(AppData IN) {
+    
+    VertexDataPosition OUT;
+    float4 pos = float4(IN.Position.xyz, 1.0f);
+
+	// Value from the DepthSampler will be in [0,1], where 0 is closest and 1 is
+	// furthest away from the viewpoint of the camera
+	float depth = NearDistanceInCm + tex2D(DepthSampler, IN.UV.xy).r * DistanceDiffInCm;
+	pos.xyz = pos.xyz - depth * float3(0,0,1);
+	
+    OUT.HPosition   = mul(WvpXf, pos);
+    return OUT;
+}
+
+VertexDataShading RenderDepthGeometryShadingVS(AppData IN) {
+    
+    VertexDataShading OUT;
+
+	float depth = NearDistanceInCm + tex2D(DepthSampler, IN.UV.xy).r * DistanceDiffInCm;
+	float4 displacedPos = float4(IN.Position.xyz - depth * float3(0,0,1), 1.0f);
+	float3 displacedWorldPos = mul(WorldXf, displacedPos).xyz;
+
+	float diffX = 4.0f/640.0f;
+	float diffY = 8.0f/480.0f;
+	
+	float depthNeighbourX = NearDistanceInCm + tex2D(DepthSampler, IN.UV.xy + float2(diffX, 0.0f)).r * DistanceDiffInCm;
+	float depthNeighbourY = NearDistanceInCm + tex2D(DepthSampler, IN.UV.xy + float2(0.0f, diffY)).r * DistanceDiffInCm;
+	float3 tangent   = (float3(VertexDistance, 0.0f, 0.0f) + IN.Position.xyz - depthNeighbourX * float3(0,0,1)) - displacedPos.xyz;
+	float3 bitangent = (float3(0.0f, VertexDistance, 0.0f) + IN.Position.xyz - depthNeighbourY * float3(0,0,1)) - displacedPos.xyz;
+	float3 normal = cross(tangent, bitangent);
+	
+	depthNeighbourX = NearDistanceInCm + tex2D(DepthSampler, IN.UV.xy - float2(diffX, 0.0f)).r * DistanceDiffInCm;
+	depthNeighbourY = NearDistanceInCm + tex2D(DepthSampler, IN.UV.xy - float2(0.0f, diffY)).r * DistanceDiffInCm;
+	tangent   = (float3(-VertexDistance, 0.0f, 0.0f) + IN.Position.xyz - depthNeighbourX * float3(0,0,1)) - displacedPos.xyz;
+	bitangent = (float3(0.0f, -VertexDistance, 0.0f) + IN.Position.xyz - depthNeighbourY * float3(0,0,1)) - displacedPos.xyz;
+	normal += cross(tangent, bitangent);
+    OUT.WorldNormal = normalize(mul(WorldITXf, float4(normal, 0)).xyz);
+
+    float3 viewToVert  = float3(ViewIXf[0].w,ViewIXf[1].w,ViewIXf[2].w) - displacedWorldPos;
+	
+    OUT.WorldPos    = displacedWorldPos;
+    OUT.WorldView   = normalize(viewToVert);
+    OUT.HPosition   = mul(WvpXf, displacedPos);
+	OUT.UV = IN.UV;
+	
+	//OUT.DisplacedPos    = displacedPos.xyz;
+	//OUT.NonDisplacedPos = IN.Position.xyz;
+	
+    return OUT;
+}
+
+void PhongShading(float3 Nn, float3 WorldPos, float3 Vn,
+            	  out float3 DiffuseContrib, out float3 SpecularContrib) {
+
+    float3 keyLightVec  = KeyPointLightPos - WorldPos;
+
+    float3 keyLn  = normalize(keyLightVec);
+
+    float3 keyHn = normalize(Vn + keyLn);
+    float3 keyLitV = lit(dot(keyLn,Nn),dot(keyHn,Nn), Shininess).xyz;
+    
+	float keyLightDistance = distance(KeyPointLightPos, WorldPos);
+    //float keyLightAtten = KeyPointLightAtten.x + (1.0f / (KeyPointLightAtten.y * keyLightDistance)) + 
+	//                     (1.0f / (KeyPointLightAtten.z * keyLightDistance * keyLightDistance));
+	
+	float keyLightAtten =  (1.0f / (0.01f * keyLightDistance));
+	
+    keyLightAtten = clamp(keyLightAtten, 0, 1);
+    
+    DiffuseContrib  = keyLightAtten * (keyLitV.y * KeyPointLightColour);
+    SpecularContrib = keyLightAtten * (keyLitV.z * SpecularColour);
+}
+
+float4 RenderDepthGeometryShadingPS(VertexDataShading IN) : COLOR {
+    float3 diffContrib, specContrib;
+    float3 nView   = normalize(IN.WorldView);
+	
+	/*
+    float diffX = 4.0f/640.0f;
+	float diffY = 8.0f/480.0f;
+	
+	float depthNeighbourX = NearDistanceInCm + tex2D(DepthSampler, IN.UV.xy + float2(diffX, 0.0f)).r * DistanceDiffInCm;
+	float depthNeighbourY = NearDistanceInCm + tex2D(DepthSampler, IN.UV.xy + float2(0.0f, diffY)).r * DistanceDiffInCm;
+	float3 tangent   = (float3(VertexDistance, 0.0f, 0.0f) + IN.NonDisplacedPos.xyz - depthNeighbourX * float3(0,0,1)) - IN.DisplacedPos.xyz;
+	float3 bitangent = (float3(0.0f, VertexDistance, 0.0f) + IN.NonDisplacedPos.xyz - depthNeighbourY * float3(0,0,1)) - IN.DisplacedPos.xyz;
+	float3 nNormal = cross(tangent, bitangent);
+	
+	depthNeighbourX = NearDistanceInCm + tex2D(DepthSampler, IN.UV.xy - float2(diffX, 0.0f)).r * DistanceDiffInCm;
+	depthNeighbourY = NearDistanceInCm + tex2D(DepthSampler, IN.UV.xy - float2(0.0f, diffY)).r * DistanceDiffInCm;
+	tangent   = (float3(-VertexDistance, 0.0f, 0.0f) + IN.NonDisplacedPos.xyz - depthNeighbourX * float3(0,0,1)) - IN.DisplacedPos.xyz;
+	bitangent = (float3(0.0f, -VertexDistance, 0.0f) + IN.NonDisplacedPos.xyz - depthNeighbourY * float3(0,0,1)) - IN.DisplacedPos.xyz;
+	nNormal = normalize(nNormal + cross(tangent, bitangent));
+	*/
+	float3 nNormal = normalize(IN.WorldNormal);
+
+    PhongShading(nNormal, IN.WorldPos, nView, diffContrib, specContrib);
+    
+	float4 colour = tex2D(ColourSampler, IN.UV.xy).rgba;
+	colour = /*float4(specContrib.xyz,0) + */ colour * float4(diffContrib.xyz, 0);
+	//return colour;
+	
+	return float4(diffContrib.xyz, 1);
+	//return float4(nNormal, 1);
+}
+
+// Technique for only rendering depth geometry/topography (no shading)
+technique RenderDepthGeometryNoShading {
+    pass p0 {
+		BlendEnable = false;
+		DepthTestEnable = true;
+		DepthFunc = LEqual;
+		CullFaceEnable = true;
+        CullFace = Back;
+        PolygonMode = int2(Front, Fill);
+
+		VertexProgram   = compile vp40 RenderDepthGeometryOnlyVS();
+    }
+}
+
+// Technique for rendering fully shaded geometry/topography
+technique RenderDepthGeometryWithShading {
+    pass p0 {
+		BlendEnable = true;
+		DepthTestEnable = true;
+		DepthFunc = LEqual;
+		CullFaceEnable = true;
+        CullFace = Back;
+        PolygonMode = int2(Front, Fill);
+
+		VertexProgram   = compile vp40 RenderDepthGeometryShadingVS();
+        FragmentProgram = compile fp40 RenderDepthGeometryShadingPS();
+    }
+}
+

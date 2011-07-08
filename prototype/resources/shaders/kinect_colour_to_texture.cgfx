@@ -1,0 +1,22 @@
+
+texture KinectColourTexture  <
+    string UIName =  "Kinect Colour Texture";
+    string ResourceType = "2D";
+>;
+
+sampler2D KinectColourSampler = sampler_state {
+    Texture = <KinectColourTexture>;
+	WrapS = ClampToEdge;
+	WrapT = ClampToEdge;
+};
+
+float4 KinectToColourTexturePS(float2 UV : TEXCOORD0) : COLOR {
+	float3 kinectColour = tex2D(KinectColourSampler, -UV.xy).rgb;
+	return float4(kinectColour.rgb, 1);
+}
+
+technique KinectColourConverter <string Script = "Pass=p0;";> {
+    pass p0 {
+        FragmentProgram = compile arbfp1 KinectToColourTexturePS();
+    }
+}

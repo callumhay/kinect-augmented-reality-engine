@@ -1,0 +1,28 @@
+
+texture KinectDepthTexture  <
+    string UIName =  "Kinect Depth Texture";
+    string ResourceType = "2D";
+>;
+
+sampler2D KinectDepthSampler = sampler_state {
+    Texture = <KinectDepthTexture>;
+	WrapS = ClampToEdge;
+	WrapT = ClampToEdge;
+};
+
+float4 KinectToDepthTexturePS(float2 UV : TEXCOORD0) : COLOR {
+	float kinectDepth = tex2D(KinectDepthSampler, float2(UV.x, -UV.y)).r;
+
+	//kinectDepth *= 30;
+	if (kinectDepth == 0) {
+		kinectDepth = 1;
+	}
+	
+	return float4(kinectDepth.rrr, 1);
+}
+
+technique KinectDepthConverter <string Script = "Pass=p0;";> {
+    pass p0 {
+        FragmentProgram = compile arbfp1 KinectToDepthTexturePS();
+    }
+}
