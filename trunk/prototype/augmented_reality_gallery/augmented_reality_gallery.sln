@@ -1,0 +1,29 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "augmented_reality_gallery", "augmented_reality_gallery.vcproj", "{D10C86FE-FCE4-44DE-8CF0-E39CCD4AC82F}"
+	ProjectSection(ProjectDependencies) = postProject
+		{63FBBC67-FC34-41E7-B94D-CF2928FBFAA9} = {63FBBC67-FC34-41E7-B94D-CF2928FBFAA9}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "aug_3d_engine", "..\aug_3d_engine\aug_3d_engine.vcproj", "{63FBBC67-FC34-41E7-B94D-CF2928FBFAA9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D10C86FE-FCE4-44DE-8CF0-E39CCD4AC82F}.Debug|Win32.ActiveCfg = Debug|Win32
+		{D10C86FE-FCE4-44DE-8CF0-E39CCD4AC82F}.Debug|Win32.Build.0 = Debug|Win32
+		{D10C86FE-FCE4-44DE-8CF0-E39CCD4AC82F}.Release|Win32.ActiveCfg = Release|Win32
+		{D10C86FE-FCE4-44DE-8CF0-E39CCD4AC82F}.Release|Win32.Build.0 = Release|Win32
+		{63FBBC67-FC34-41E7-B94D-CF2928FBFAA9}.Debug|Win32.ActiveCfg = Debug|Win32
+		{63FBBC67-FC34-41E7-B94D-CF2928FBFAA9}.Debug|Win32.Build.0 = Debug|Win32
+		{63FBBC67-FC34-41E7-B94D-CF2928FBFAA9}.Release|Win32.ActiveCfg = Release|Win32
+		{63FBBC67-FC34-41E7-B94D-CF2928FBFAA9}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

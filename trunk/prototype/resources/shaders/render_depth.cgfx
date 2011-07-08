@@ -1,0 +1,27 @@
+
+texture DepthTexture  <
+    string UIName =  "Depth Texture";
+    string ResourceType = "2D";
+>;
+
+sampler2D DepthSampler = sampler_state {
+    Texture = <DepthTexture>;
+};
+
+//float NearZ = 1.0f;
+//float FarZ  = 100.0f;
+//float ZBufferDepthBits = 16;
+
+float RenderDepthPS(float2 UV : TEXCOORD0) : DEPTH {
+	//float a = FarZ / (FarZ - NearZ);
+	//float b = FarZ * NearZ / (NearZ - FarZ);
+	//return exp2(ZBufferDepthBits) * (a + b / tex2D(DepthSampler, UV).r) / 65535.0f;
+	
+	return tex2D(DepthSampler, UV).r;
+}
+
+technique RenderDepth {
+    pass p0 {
+        FragmentProgram = compile arbfp1 RenderDepthPS();
+    }
+}
